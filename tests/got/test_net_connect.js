@@ -80,6 +80,48 @@ describe('`enableNetConnect()`', () => {
     )
   })
 
+  it('enables repeated real HTTP requests for a global regexp', async () => {
+    const onResponse = sinon.spy()
+    const { origin } = await servers.startHttpServer((request, response) => {
+      onResponse()
+      response.writeHead(200)
+      response.end()
+    })
+
+    nock.enableNetConnect(/ocalhos/g)
+
+    await got(origin)
+    await got(origin)
+    expect(onResponse).to.have.been.calledTwice()
+  })
+
+  it('enables repeated real HTTP requests for a sticky regexp', async () => {
+    const onResponse = sinon.spy()
+    const { origin } = await servers.startHttpServer((request, response) => {
+      onResponse()
+      response.writeHead(200)
+      response.end()
+    })
+
+    nock.enableNetConnect(/^localhost:/y)
+
+    await got(origin)
+    await got(origin)
+    expect(onResponse).to.have.been.calledTwice()
+  })
+
+  it('disallows other domains with a stateful regexp after a match', async () => {
+    const { origin } = await servers.startHttpServer()
+
+    nock.enableNetConnect(/ocalhos/g)
+
+    await got(origin)
+    await assertRejects(
+      got('https://example.test/'),
+      /Nock: Disallowed net connect for "example.test:443\/"/,
+    )
+  })
+
   it('enables real HTTP request only for specified domain, via function', async () => {
     const onResponse = sinon.spy()
     const { origin } = await servers.startHttpServer((request, response) => {
